@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissões das janelas widget e painel",
+  "windows": ["widget", "panel"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:event:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://claude.ai/*" },
+        { "url": "https://docs.claude.com/*" },
+        { "url": "https://support.claude.com/*" },
+        { "url": "https://status.claude.com/*" }
+      ]
+    }
+  ]
+}

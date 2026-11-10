@@ -1,0 +1,84 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Claude Usage",
+  "version": "1.0.0",
+  "identifier": "com.claudeusage.widget",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "widget",
+        "title": "Claude Usage",
+        "url": "index.html?view=widget",
+        "width": 104,
+        "height": 104,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false,
+        "visibleOnAllWorkspaces": true,
+        "acceptFirstMouse": true
+      },
+      {
+        "label": "panel",
+        "title": "Claude Usage",
+        "url": "index.html?view=panel",
+        "width": 380,
+        "height": 560,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "visibleOnAllWorkspaces": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Utility",
+    "shortDescription": "Uso do Claude Code (Pro, Max, Team e Enterprise)",
+    "longDescription": "Widget flutuante que mostra os limites de sessão (5h), semanais e o consumo local do Claude Code, para assinaturas individuais (Pro, Max) e organizacionais (Team, Enterprise).",
+    "copyright": "Claude Usage",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["PortugueseBR", "English"],
+        "displayLanguageSelector": false
+      },
+      "wix": { "language": "pt-BR" }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

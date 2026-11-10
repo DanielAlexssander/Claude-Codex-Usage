@@ -1,0 +1,249 @@
+/* ------------------------------------------------------------------
+   Widget flutuante — janela 104×104 transparente, sempre no topo.
+   Um disco grafite de 72 px com um único anel fino. A folga de
+   16 px por lado comporta halo, zoom do hover e sombra sem cortes.
+------------------------------------------------------------------- */
+body.view-widget {
+  display: grid;
+  place-items: center;
+}
+
+.w {
+  --size: 72px;
+  --lvl: #2f8fe0;
+  --lvl-soft: #5db6f5;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  cursor: pointer;
+  animation: w-enter 0.6s var(--ease-spring) both;
+  transition: transform 0.3s var(--ease-spring);
+  touch-action: none;
+}
+.w:hover { transform: scale(1.04); }
+.w:active { transform: scale(0.96); }
+.w[data-level="warn"] { --lvl: var(--warning); --lvl-soft: #ffd166; }
+.w[data-level="high"] { --lvl: var(--serious); --lvl-soft: #ffb08a; }
+.w[data-level="crit"] { --lvl: var(--critical); --lvl-soft: #ff8a8a; }
+.w[data-level="error"] { --lvl: #8b8c84; --lvl-soft: #b9bab2; }
+
+@keyframes w-enter {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- halo: respira devagar, acelera conforme o nível ---------- */
+.w-halo {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--lvl) 55%, transparent) 0%, transparent 70%);
+  opacity: 0.35;
+  animation: w-breathe 4.5s ease-in-out infinite;
+  pointer-events: none;
+  transition: background 0.6s;
+}
+.w[data-level="warn"] .w-halo { animation-duration: 3.2s; }
+.w[data-level="high"] .w-halo { animation-duration: 2.2s; opacity: 0.5; }
+.w[data-level="crit"] .w-halo { animation-duration: 1.3s; opacity: 0.7; }
+.w[data-level="error"] .w-halo { animation: none; opacity: 0.15; }
+@keyframes w-breathe {
+  0%, 100% { transform: scale(0.9); opacity: 0.2; }
+  50% { transform: scale(1.05); opacity: 0.55; }
+}
+
+/* ---------- disco ---------- */
+.w-core {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #1f201c;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 10px 18px -12px rgba(255, 255, 255, 0.12),
+    0 8px 20px -8px rgba(0, 0, 0, 0.65);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* pilha central: marca · número · rótulo, todos no mesmo eixo */
+.w-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  transform: translateY(1px);
+}
+/* marca: Claude */
+.w-brand {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 8px;
+  margin-bottom: 4px;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+.w-cc { width: 10px; line-height: 0; }
+.w-brand img, .w-brand svg { width: 100%; height: auto; vertical-align: middle; } /* sem display: respeita logo-light/logo-dark */
+.w-cc .logo { filter: drop-shadow(0 0 2px rgba(217, 119, 87, 0.5)); }
+.w-brand .wordmark { font-size: 6px; }
+.w:hover .w-brand { opacity: 1; }
+
+/* número: o "%" fica fora do fluxo para o algarismo ficar centrado de verdade */
+.w-num {
+  position: relative;
+  height: 20px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+  display: grid;
+  place-items: center;
+}
+.w-n { position: relative; }
+.w-n i {
+  position: absolute;
+  left: 100%;
+  top: 1px;
+  margin-left: 1px;
+  font-style: normal;
+  font-size: 8px;
+  font-weight: 600;
+  opacity: 0.55;
+}
+.w-n { grid-area: 1 / 1; transition: opacity 0.28s var(--ease-out), transform 0.38s var(--ease-out); }
+.w-lbl {
+  position: relative;
+  height: 8px;
+  margin-top: 3px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em; /* compensa o espaçamento após a última letra */
+  text-transform: uppercase;
+  opacity: 0.6;
+  display: grid;
+  place-items: center;
+}
+.w-lbl span { grid-area: 1 / 1; transition: opacity 0.28s var(--ease-out), transform 0.38s var(--ease-out); }
+
+/* troca sessão ⇄ semana (hover) e % ⇄ tempo restante (rotação): deslizam na vertical */
+.w-n-alt, .w-l-alt, .w-n-time, .w-l-time { opacity: 0; transform: translateY(8px); }
+.w.alt .w-n-main, .w.alt .w-l-main,
+.w.time .w-n-main, .w.time .w-l-main { opacity: 0; transform: translateY(-8px); }
+.w.alt .w-n-alt, .w.alt .w-l-alt,
+.w.time .w-n-time, .w.time .w-l-time { opacity: 1; transform: none; }
+.w-n-time { font-size: 17px; letter-spacing: -0.03em; white-space: nowrap; }
+
+
+/* ---------- anel ---------- */
+.w-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+.w-track {
+  fill: none;
+  stroke: rgba(128, 128, 128, 0.35);
+  stroke-width: 3.5;
+}
+.w-arc {
+  fill: none;
+  stroke: var(--lvl);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--lvl) 70%, transparent));
+  transition: stroke-dashoffset 0.9s var(--ease-out), stroke 0.5s;
+}
+.w-spark {
+  transform-origin: 36px 36px;
+  transition: transform 0.9s var(--ease-out);
+}
+.w-spark circle {
+  fill: #fff;
+  filter: drop-shadow(0 0 4px var(--lvl-soft));
+  animation: w-twinkle 1.8s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes w-twinkle {
+  0%, 100% { transform: scale(0.8); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+.w[data-level="error"] .w-spark { display: none; }
+
+/* atualizando: traço fino girando por fora */
+.w-busy {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--lvl-soft) 70%, transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+  animation: w-spin 3s linear infinite;
+  pointer-events: none;
+}
+.w.busy .w-busy { opacity: 0.9; }
+@keyframes w-spin { to { transform: rotate(360deg); } }
+
+/* painel aberto: contorno sutil */
+.w.open .w-core { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 0 1.5px var(--lvl-soft), 0 8px 20px -8px rgba(0, 0, 0, 0.65); }
+
+/* pulso quando o valor muda */
+.w.bump { animation: w-bump 0.55s var(--ease-spring); }
+@keyframes w-bump {
+  35% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* sem login / erro */
+.w-err {
+  display: none;
+  position: absolute;
+  font-weight: 800;
+  font-size: 22px;
+  color: var(--warning);
+}
+.w[data-level="error"] .w-err { display: block; }
+.w[data-level="error"] .w-num, .w[data-level="error"] .w-lbl { visibility: hidden; }
+
+/* Claude instável (status.claude.com): ponto pulsante no canto do disco */
+.w-svc {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #fab219;
+  border: 2px solid #1f201c;
+  transform: scale(0);
+  transition: transform 0.35s var(--ease-spring);
+  pointer-events: none;
+  z-index: 3;
+}
+.w-svc::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  color: #fab219;
+  animation: w-svc-ping 1.8s ease-out infinite;
+}
+.w[data-svc="major"] .w-svc { background: #ec835a; }
+.w[data-svc="major"] .w-svc::after { color: #ec835a; }
+.w[data-svc="maintenance"] .w-svc { background: #3d9be9; }
+.w[data-svc="maintenance"] .w-svc::after { color: #3d9be9; }
+.w[data-svc="minor"] .w-svc,
+.w[data-svc="major"] .w-svc,
+.w[data-svc="maintenance"] .w-svc { transform: scale(1); }
+@keyframes w-svc-ping {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}

@@ -1,0 +1,9 @@
+# Configuração do cargo só para este projeto (vale para `npm run app:dev` e para o build).
+
+[http]
+# Algumas redes corporativas bloqueiam a consulta de revogação (CRL/OCSP) dos certificados e o cargo
+# falha com CRYPT_E_NO_REVOCATION_CHECK. A conexão continua criptografada e validada.
+check-revoke = false
+
+[net]
+retry = 5
