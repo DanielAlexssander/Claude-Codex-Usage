@@ -28,6 +28,7 @@ pub struct ErrInfo {
 #[derive(Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    pub codex: Option<Box<Snapshot>>,
     pub usage: Option<Value>,
     pub profile: Option<Value>,
     pub creds: Option<OAuthCreds>,
@@ -68,6 +69,7 @@ pub struct AppState {
     pub cache_dir: PathBuf,
     pub snapshot: Mutex<Snapshot>,
     pub scanner: Mutex<Scanner>,
+    pub codex_scanner: Mutex<crate::codex::CodexScanner>,
     pub client: reqwest::Client,
     pub user_agent: Mutex<String>,
     pub wake: tokio::sync::Notify,
@@ -101,6 +103,7 @@ impl AppState {
             cache_dir,
             snapshot: Mutex::new(snapshot),
             scanner: Mutex::new(Scanner::new()),
+            codex_scanner: Mutex::new(crate::codex::CodexScanner::default()),
             client: crate::api::build_client(),
             user_agent: Mutex::new("claude-cli/2.1.0 (external, cli)".into()),
             wake: tokio::sync::Notify::new(),

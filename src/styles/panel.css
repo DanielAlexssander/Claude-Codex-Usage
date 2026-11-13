@@ -813,3 +813,9 @@ kbd {
 }
 .warn-t { color: var(--serious-ink); }
 .row.off { opacity: 0.5; }
+.hd::before { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+:root[data-provider="codex"] .hd { background: linear-gradient(135deg, #203b60, #111d30); }
+:root[data-provider="claude"] .hd { background: linear-gradient(135deg, #503327, #271c17); }
+.avatar .logo { width: 23px; height: 23px; }
+#btn-provider { color: var(--accent-2); font-size: 20px; flex-shrink: 0; }
+.brand-claude { flex-shrink: 0; }

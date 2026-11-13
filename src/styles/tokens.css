@@ -179,3 +179,21 @@ svg {
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
 }
+/* Identidade do provedor, compartilhada pelo widget e pelo painel. */
+:root[data-provider="claude"] {
+  --accent: #d97757;
+  --accent-2: #e99b72;
+  --accent-soft: rgba(217, 119, 87, .15);
+  --accent-ink: #fff;
+  --brand-blue: #d97757;
+  --seq-lo: #f4e2da;
+  --seq-hi: #b85c39;
+}
+:root[data-provider="codex"] {
+  --accent: #398fe6;
+  --accent-2: #70baff;
+  --accent-soft: rgba(57, 143, 230, .15);
+  --accent-ink: #fff;
+  --brand-blue: #398fe6;
+  --claude: #398fe6;
+}

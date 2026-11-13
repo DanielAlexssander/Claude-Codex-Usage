@@ -516,7 +516,7 @@ impl Scanner {
     }
 
     /// Processa linhas completas; retorna (bytes consumidos, projeto detectado).
-    fn ingest(&mut self, path: &Path, buf: &[u8], project_hint: Option<u32>) -> (usize, Option<u32>) {
+    pub(crate) fn ingest(&mut self, path: &Path, buf: &[u8], project_hint: Option<u32>) -> (usize, Option<u32>) {
         let consumed = match buf.iter().rposition(|&b| b == b'\n') {
             Some(i) => i + 1,
             None => return (0, project_hint),

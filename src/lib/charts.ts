@@ -20,11 +20,11 @@ export function gauge(util: number, lvl: string, pace: number | null, label: str
   if (pace != null) {
     const ang = (135 + 270 * pace) * (Math.PI / 180);
     const r1 = r - sw / 2 - 3, r2 = r + sw / 2 + 3;
-    paceMark = `<line class="g-pace" x1="${cx + r1 * Math.cos(ang)}" y1="${cy + r1 * Math.sin(ang)}" x2="${cx + r2 * Math.cos(ang)}" y2="${cy + r2 * Math.sin(ang)}"><title>Ritmo linear: ${Math.round(pace * 100)}% do tempo da janela já passou</title></line>`;
+    paceMark = `<line class="g-pace" x1="${cx + r1 * Math.cos(ang)}" y1="${cy + r1 * Math.sin(ang)}" x2="${cx + r2 * Math.cos(ang)}" y2="${cy + r2 * Math.sin(ang)}"><title>Ritmo linear: ${Math.floor(pace * 100)}% do tempo da janela já passou</title></line>`;
   }
   return `
   <div class="gauge">
-    <svg viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}: ${Math.round(util)}%">
+    <svg viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(label)}: ${Math.floor(util)}%">
       <defs>
         <linearGradient id="g-grad" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0" style="stop-color:${lvl === "ok" ? "var(--accent-2)" : lvlVar[lvl]}"/>
@@ -38,7 +38,7 @@ export function gauge(util: number, lvl: string, pace: number | null, label: str
         transform="rotate(135 ${cx} ${cy})"/>
       ${paceMark}
     </svg>
-    <div class="g-center"><b>${Math.round(util)}<small>%</small></b><span>${esc(label)}</span></div>
+    <div class="g-center"><b>${Math.floor(util)}<small>%</small></b><span>${esc(label)}</span></div>
   </div>`;
 }
 

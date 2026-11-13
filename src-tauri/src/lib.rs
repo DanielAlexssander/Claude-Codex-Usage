@@ -1,4 +1,5 @@
 mod api;
+mod codex;
 mod credentials;
 mod local_stats;
 mod poller;
@@ -28,6 +29,7 @@ struct SettingsPayload {
     /// combinação do atalho global e se o registro falhou (combinação já usada por outro app)
     shortcut_keys: &'static str,
     shortcut_failed: bool,
+    provider_shortcut_failed: bool,
 }
 
 fn settings_payload(app: &AppHandle) -> SettingsPayload {
@@ -40,6 +42,7 @@ fn settings_payload(app: &AppHandle) -> SettingsPayload {
         platform: std::env::consts::OS,
         shortcut_keys: presentation::SHORTCUT,
         shortcut_failed: presentation::SHORTCUT_FAILED.load(std::sync::atomic::Ordering::Relaxed),
+        provider_shortcut_failed: presentation::PROVIDER_SHORTCUT_FAILED.load(std::sync::atomic::Ordering::Relaxed),
     }
 }
 
@@ -118,6 +121,17 @@ fn set_autostart(app: AppHandle, enabled: bool) -> SettingsPayload {
 #[tauri::command]
 fn set_pinned(app: AppHandle, pinned: bool) {
     app.state::<AppState>().pinned.store(pinned, std::sync::atomic::Ordering::Relaxed);
+    emit_settings(&app);
+}
+
+#[tauri::command]
+fn toggle_provider(app: AppHandle) {
+    let st = app.state::<AppState>();
+    {
+        let mut settings = st.settings.lock().unwrap();
+        settings.provider = if settings.provider == "codex" { "claude" } else { "codex" }.into();
+    }
+    st.save_settings_now();
     emit_settings(&app);
 }
 
@@ -337,6 +351,7 @@ pub fn run() {
             set_autostart,
             set_pinned,
             toggle_panel,
+            toggle_provider,
             hide_panel,
             reset_widget_position,
             renew_login,

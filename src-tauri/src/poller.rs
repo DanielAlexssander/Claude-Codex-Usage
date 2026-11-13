@@ -69,6 +69,12 @@ pub async fn run(app: AppHandle) {
 
         set_refreshing(&app, true);
         refresh_local(&app).await;
+        let handle = app.clone();
+        if let Ok(codex) = tauri::async_runtime::spawn_blocking(move || {
+            handle.state::<AppState>().codex_scanner.lock().unwrap().scan()
+        }).await {
+            st.snapshot.lock().unwrap().codex = Some(Box::new(codex));
+        }
         refresh_status(&app, &mut last_status).await;
         if check_session_events(&app) {
             // a janela de 5h virou: busca o % novo (respeitando o intervalo mínimo entre consultas)
@@ -243,7 +249,7 @@ fn check_session_events(app: &AppHandle) -> bool {
             notify(
                 app,
                 &format!("Claude · sessão reinicia em {mins} min"),
-                &format!("A sessão de 5h está em {util:.0}% e volta a 0% às {hora}."),
+                &format!("A sessão de 5h está em {:.0}% e volta a 0% às {hora}.", util.floor()),
             );
         }
     }
@@ -391,7 +397,7 @@ fn check_thresholds(app: &AppHandle, usage: &serde_json::Value) {
                         format!(" Para não travar o {m}, use {alt} no que não precisar dele (/model no Claude Code).")
                     })
                     .unwrap_or_default();
-                notify(app, &format!("Claude · {} em {:.0}%", label, util), &format!("Você passou de {crossed}% do limite.{when}{tip}"));
+                notify(app, &format!("Claude · {} em {:.0}%", label, util.floor()), &format!("Você passou de {crossed}% do limite.{when}{tip}"));
             }
         } else if util < 1.0 && prev > 0 {
             notified.remove(key);

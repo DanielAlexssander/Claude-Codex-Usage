@@ -1,7 +1,8 @@
+import { providerSnapshot } from "../lib/provider";
 import { invoke, listen, startDragging } from "../lib/ipc";
 import { limitWindows, serviceIssue } from "../lib/normalize";
-import { level, when, pct } from "../lib/format";
-import { claudeMark } from "../lib/brand";
+import { when, pct } from "../lib/format";
+import { claudeMark, providerMark } from "../lib/brand";
 import type { LimitWindow, Settings, Snapshot } from "../lib/types";
 
 // Geometria do anel (viewBox 72×72)
@@ -38,35 +39,41 @@ export function mountWidget(root: HTMLElement) {
   const lAlt = root.querySelector<HTMLElement>(".w-l-alt")!;
   const nTime = root.querySelector<HTMLElement>(".w-n-time")!;
 
+  let provider: Settings["provider"] = "claude";
   let metric: Settings["widgetMetric"] = "five_hour";
-  let current = 0;
+  let current: number | null = null;
+  let animation = 0;
   let last: Snapshot | null = null;
   let main: LimitWindow | undefined;
   let other: LimitWindow | undefined;
   let hovering = false;
 
   function countTo(el: HTMLElement, from: number, to: number) {
+    cancelAnimationFrame(animation);
     const t0 = performance.now();
     const dur = 900;
     const step = (t: number) => {
       const k = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - k, 3);
       el.textContent = String(Math.round(from + (to - from) * e));
-      if (k < 1) requestAnimationFrame(step);
+      if (k < 1) animation = requestAnimationFrame(step);
     };
-    requestAnimationFrame(step);
+    animation = requestAnimationFrame(step);
   }
 
   /** Aponta o anel (arco, cor e ponto) para uma janela de limite. */
   function aimRing(win: LimitWindow | undefined) {
     const u = Math.min(100, Math.max(0, win?.utilization ?? 0));
-    w.dataset.level = win ? level(u) : "error";
+    w.dataset.level = win ? (u > 90 ? "crit" : "ok") : "error";
     arc.style.strokeDashoffset = String(C * (1 - u / 100));
     spark.style.transform = `rotate(${(u / 100) * 360}deg)`;
   }
 
   function render(s: Snapshot) {
     last = s;
+    s = providerSnapshot(s, provider);
+    root.querySelector(".w-cc")!.innerHTML = providerMark(provider);
+    w.setAttribute("aria-label", `Uso do ${provider === "codex" ? "Codex" : "Claude"} — clique para abrir`);
     // ponto de aviso quando o próprio Claude está instável (status.claude.com)
     const issue = serviceIssue(s);
     w.dataset.svc = issue?.severity ?? "";
@@ -77,6 +84,11 @@ export function mountWidget(root: HTMLElement) {
     other = main === five ? week : five;
 
     if (!main) {
+      main = other = undefined;
+      cancelAnimationFrame(animation);
+      current = null;
+      nMain.textContent = nAlt.textContent = "–";
+      w.classList.remove("has-alt", "alt", "time");
       aimRing(undefined);
       w.title = s.error?.message ?? "Sem dados de uso ainda — abra o painel.";
       return;
@@ -86,18 +98,23 @@ export function mountWidget(root: HTMLElement) {
 
     lMain.textContent = main.key === "five_hour" ? "sessão" : "semana";
     lAlt.textContent = other?.key === "five_hour" ? "sessão" : "semana";
-    nAlt.textContent = other ? String(Math.round(other.utilization)) : "–";
+    nAlt.textContent = other ? String(Math.floor(other.utilization)) : "–";
     w.classList.toggle("has-alt", !!other);
 
-    const rounded = Math.round(main.utilization);
-    if (rounded !== current || nMain.textContent === "–") {
-      countTo(nMain, current, rounded);
+    const displayed = Math.floor(main.utilization);
+    if (current === null || displayed === 0) {
+      // Uma nova fonte ou janela zerada deve substituir o texto anterior imediatamente.
+      cancelAnimationFrame(animation);
+      nMain.textContent = String(displayed);
+      current = displayed;
+    } else if (displayed !== current) {
+      countTo(nMain, current, displayed);
       if (nMain.textContent !== "–" && prevLevel !== "error") {
         w.classList.remove("bump");
         void w.offsetWidth;
         w.classList.add("bump");
       }
-      current = rounded;
+      current = displayed;
     }
 
     const lines = [`${main.label}: ${pct(main.utilization)}` + (main.resetsAt ? ` · reinicia ${when(main.resetsAt)}` : "")];
@@ -180,6 +197,7 @@ export function mountWidget(root: HTMLElement) {
 
   // ---------- dados ----------
   invoke<Settings>("get_settings").then((st) => {
+    provider = st.provider;
     metric = st.widgetMetric;
     invoke<Snapshot>("get_snapshot").then(render);
   });
@@ -187,10 +205,15 @@ export function mountWidget(root: HTMLElement) {
   listen<boolean>("refreshing", (b) => w.classList.toggle("busy", b));
   listen<boolean>("panel-visibility", (open) => w.classList.toggle("open", open));
   listen<Settings>("settings", (st) => {
-    if (st.widgetMetric !== metric) {
+    if (st.widgetMetric !== metric || st.provider !== provider) {
+      provider = st.provider;
       metric = st.widgetMetric;
-      current = 0;
+      cancelAnimationFrame(animation);
+      current = null;
       if (last) render(last);
+      // A nova IA/métrica começa no percentual, com um ciclo de tempo próprio.
+      nTime.textContent = "–";
+      rotate(false);
     }
   });
 }

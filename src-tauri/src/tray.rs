@@ -132,10 +132,10 @@ pub fn update(app: &AppHandle) {
     let week = u.and_then(|u| crate::api::utilization(u, "seven_day"));
     let mut tip = String::from("Claude Usage");
     if let Some(f) = five {
-        tip.push_str(&format!("\nSessão (5h): {:.0}%", f));
+        tip.push_str(&format!("\nSessão (5h): {:.0}%", f.floor()));
     }
     if let Some(w) = week {
-        tip.push_str(&format!("\nSemanal: {:.0}%", w));
+        tip.push_str(&format!("\nSemanal: {:.0}%", w.floor()));
     }
     if let Some(e) = &snap.error {
         if snap.usage.is_none() {
@@ -146,6 +146,6 @@ pub fn update(app: &AppHandle) {
     let _ = tray.set_tooltip(Some(tip));
     #[cfg(target_os = "macos")]
     {
-        let _ = tray.set_title(five.map(|f| format!("{:.0}%", f)));
+        let _ = tray.set_title(five.map(|f| format!("{:.0}%", f.floor())));
     }
 }

@@ -1,8 +1,9 @@
+import { providerSnapshot } from "../lib/provider";
 import { invoke, listen, openUrl } from "../lib/ipc";
 import { accountInfo, componentStatus, elapsedFraction, extraUsage, incidentStatus, limitWindows, planLabel, projectSession, serviceIssue, weeklyPace } from "../lib/normalize";
 import { ago, compact, duration, esc, int, level, levelIcon, levelLabel, money, pct, when, clock } from "../lib/format";
 import { dailyBars, gauge, heatmap, sparkline, stackBar, tokenLegend } from "../lib/charts";
-import { claudeMark } from "../lib/brand";
+import { claudeMark, providerMark } from "../lib/brand";
 import { applyPrefs } from "../lib/prefs";
 import type { LimitWindow, Settings, Snapshot, Totals } from "../lib/types";
 
@@ -36,6 +37,7 @@ export function mountPanel(root: HTMLElement) {
         <div class="brand-title"><b>Claude Usage</b><span>Uso do Claude Code</span></div>
       </div>
       <div class="hd-actions">
+        <button class="ib" id="btn-provider" title="Alternar Claude / Codex (PgUp)" aria-label="Alternar Claude e Codex">⇄</button>
         <button class="ib" id="btn-refresh" title="Atualizar agora (Ctrl+R)">${I.refresh}</button>
         <button class="ib" id="btn-pin" title="Fixar painel (não esconder ao perder o foco)">${I.pin}</button>
         <button class="ib" id="btn-settings" title="Configurações">${I.gear}</button>
@@ -65,6 +67,8 @@ export function mountPanel(root: HTMLElement) {
   const body = $("#body");
   const tip = $("#tip");
   let snap: Snapshot | null = null;
+  let rawSnapshot: Snapshot | null = null;
+  const isCodex = () => settings?.provider === "codex";
   let settings: Settings | null = null;
 
   // ------------------------------------------------------------ abas
@@ -104,6 +108,7 @@ export function mountPanel(root: HTMLElement) {
     $("#btn-refresh").classList.add("spin");
     invoke("refresh_now");
   };
+  $("#btn-provider").addEventListener("click", () => invoke("toggle_provider"));
   $("#btn-refresh").addEventListener("click", refresh);
   $("#btn-close").addEventListener("click", () => invoke("hide_panel"));
   $("#btn-settings").addEventListener("click", () => openSheet(true));
@@ -112,7 +117,7 @@ export function mountPanel(root: HTMLElement) {
     $("#btn-pin").classList.toggle("on", on);
     invoke("set_pinned", { pinned: on });
   });
-  $("#lnk-web").addEventListener("click", () => openUrl("https://claude.ai/settings/usage"));
+  $("#lnk-web").addEventListener("click", () => openUrl(isCodex() ? "https://chatgpt.com/codex/settings/usage" : "https://claude.ai/settings/usage"));
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       if ($("#sheet").classList.contains("open")) openSheet(false);
@@ -150,33 +155,45 @@ export function mountPanel(root: HTMLElement) {
 
   // ------------------------------------------------------------ render
   function renderAccount(s: Snapshot) {
+    root.querySelector(".brand-claude")!.innerHTML = providerMark(settings?.provider ?? "claude");
+    root.querySelector(".brand-title b")!.textContent = isCodex() ? "Codex Usage" : "Claude Usage";
+    $("#lnk-web").textContent = isCodex() ? "Codex › Uso" : "claude.ai › Uso";
     const a = accountInfo(s);
-    const p = planLabel(s);
-    const name = a.name || a.email.split("@")[0] || "Conta Claude";
+    const codexPlan = String(s.profile?.plan || "ChatGPT");
+    const p = isCodex() ? { plan: codexPlan.charAt(0).toUpperCase() + codexPlan.slice(1), tier: null } : planLabel(s);
+    const name = a.name || a.email.split("@")[0] || (isCodex() ? "Conta Codex" : "Conta Claude");
     const initials = name
       .split(/[\s._-]+/)
       .filter(Boolean)
       .slice(0, 2)
       .map((x) => x[0]!.toUpperCase())
       .join("");
-    const stale = s.stale && s.updatedAt ? `<span class="chip muted" title="Dados da última execução — atualizando">cache</span>` : "";
+    const stale = isCodex()
+      ? `<span class="chip muted" title="Último registro local ${esc(ago(s.updatedAt))}">${s.stale ? "registro antigo" : "logs locais"}</span>`
+      : s.stale && s.updatedAt ? `<span class="chip muted" title="Dados da última execução — atualizando">cache</span>` : "";
     $("#acct").innerHTML = `
       <div class="avatar">${esc(initials || "C")}</div>
       <div class="acct-who">
         <b title="${esc(name)}">${esc(name)}</b>
-        ${a.email ? `<span class="acct-mail" title="${esc(a.email)}">${esc(a.email)}</span>` : `<span class="acct-mail">Login do Claude Code</span>`}
+        ${a.email ? `<span class="acct-mail" title="${esc(a.email)}">${esc(a.email)}</span>` : `<span class="acct-mail">${isCodex() ? "Perfil do login local indisponível" : "Login do Claude Code"}</span>`}
         <div class="acct-meta">
           ${a.org ? `<span class="acct-org" title="${esc(a.org)}">${esc(a.org)}</span>` : ""}
           <span class="chip" title="${esc(s.creds?.rateLimitTier ?? "")}">${I.bolt}${esc(p.plan)}${p.tier ? ` · ${esc(p.tier)}` : ""}</span>
           ${stale}
         </div>
       </div>`;
-    root.querySelector(".brand-title span")!.textContent = `Uso do Claude Code · ${p.plan}`;
+    root.querySelector(".brand-title span")!.textContent = `Uso do ${isCodex() ? "Codex" : "Claude Code"} · ${p.plan}`;
   }
 
   function renderBanner(s: Snapshot) {
     const b = $("#banner");
     const e = s.error;
+    if (isCodex()) {
+      b.hidden = !e;
+      b.className = "banner";
+      b.innerHTML = e ? `<div><b>Sem dados do Codex</b>${esc(e.message)}</div>` : "";
+      return;
+    }
     if (s.renewing) {
       b.className = "banner";
       b.hidden = false;
@@ -257,7 +274,7 @@ export function mountPanel(root: HTMLElement) {
           ? `<span class="pace-up" title="Consumo acima ${what}">▲ acima do ritmo</span>`
           : `<span class="pace-ok" title="Consumo dentro ${what}">● no ritmo</span>`;
     }
-    const fracTip = ef != null ? `<br>${Math.round(ef * 100)}% do período ${wp ? "(em dias úteis) " : ""}já passou` : "";
+    const fracTip = ef != null ? `<br>${pct(ef * 100)} do período ${wp ? "(em dias úteis) " : ""}já passou` : "";
     let budget = "";
     if (wp && w.key === "seven_day") {
       budget =
@@ -320,7 +337,7 @@ export function mountPanel(root: HTMLElement) {
           </div>
         </div>`;
     } else if (!s.usage) {
-      html += `<div class="card" style="--i:${i++}"><div class="empty">${I.plug}Ainda sem dados de limite do plano.<br>Eles aparecem aqui assim que o login do Claude Code for encontrado e a API responder.</div></div>`;
+      html += `<div class="card" style="--i:${i++}"><div class="empty">${I.plug}Ainda sem dados de limite do plano.<br>${isCodex() ? "Use o Codex conectado ao ChatGPT neste computador para registrar seus limites." : "Eles aparecem aqui assim que o login do Claude Code for encontrado e a API responder."}</div></div>`;
     }
 
     if (others.length) {
@@ -369,7 +386,7 @@ export function mountPanel(root: HTMLElement) {
         <div class="tile" style="--i:3"><span>Ritmo (última hora)</span><b>${compact(L.burnRateTpm)}</b><em>tokens/min (sem cache lido)</em></div>
         <div class="tile" style="--i:4"><span>Custo eq. por hora</span><b>${money(L.costPerHour)}</b><em>última hora</em></div>
       </div>
-      <p class="note">Tokens totais incluem leitura de cache, que é a maior parte do volume no Claude Code. Dados lidos localmente de ${int(L.files)} transcripts.</p>`;
+      <p class="note">Tokens totais incluem leitura de cache, que é a maior parte do volume no ${isCodex() ? "Codex" : "Claude Code"}. Dados lidos localmente de ${int(L.files)} transcripts.</p>`;
   }
 
   function renderModels(s: Snapshot): string {
@@ -403,7 +420,7 @@ export function mountPanel(root: HTMLElement) {
       .join("");
     return `
       <div class="card" style="--i:0"><h3>Tokens por modelo <small>7 dias</small></h3>${models.length ? tokenLegend() : ""}${localRows}${cloudRows}</div>
-      <p class="note">"Eq. API" é uma estimativa do custo pelos preços públicos da API (entrada, saída e cache). Na assinatura (Pro, Max, Team ou Enterprise) o valor é fixo; isto serve só para comparar o peso de cada modelo.</p>`;
+      <p class="note">${isCodex() ? "Tokens registrados nas sessões locais do Codex. O cache lido já está incluído na entrada; o raciocínio já está incluído na saída. Custos não estimados." : `"Eq. API" é uma estimativa do custo pelos preços públicos da API (entrada, saída e cache). Na assinatura (Pro, Max, Team ou Enterprise) o valor é fixo; isto serve só para comparar o peso de cada modelo.`}</p>`;
   }
 
   function renderProjects(s: Snapshot): string {
@@ -414,10 +431,10 @@ export function mountPanel(root: HTMLElement) {
     return `<div class="card" style="--i:0"><h3>Projetos <small>7 dias</small></h3>
       ${L.projects
         .map(
-          (p) => `<div class="prow" data-tip="${esc(`<b>${esc(p.name)}</b><br>${compact(p.total)} tokens · ${int(p.messages)} req.<br>${money(p.cost)} eq. API`)}">
+          (p) => `<div class="prow" data-tip="${esc(`<b>${esc(p.name)}</b><br>${compact(p.total)} tokens · ${int(p.messages)} req.<br>${isCodex() ? "custo não estimado" : `${money(p.cost)} eq. API`}`)}">
             <b>${esc(p.name)}</b><span class="pv">${compact(p.total)}</span>
             <div class="pbar"><i style="width:${(p.total / max) * 100}%"></i></div>
-            <span class="ps">${int(p.messages)} req. · ${int(p.sessions)} ${p.sessions === 1 ? "sessão" : "sessões"} · ${money(p.cost)} · ${ago(p.lastTs * 1000)}</span>
+            <span class="ps">${int(p.messages)} req. · ${int(p.sessions)} ${p.sessions === 1 ? "sessão" : "sessões"} · ${isCodex() ? "custo não estimado" : money(p.cost)} · ${ago(p.lastTs * 1000)}</span>
           </div>`,
         )
         .join("")}</div>
@@ -425,6 +442,7 @@ export function mountPanel(root: HTMLElement) {
   }
 
   function sourcesNote(s: Snapshot): string {
+    if (isCodex()) return `<p class="note">Fontes: sessões locais do Codex em ${esc(s.local?.roots.join(", ") ?? "~/.codex/sessions")}. Custos de API não estimados para o Codex. Limites refletem o último registro local.</p>`;
     const src = s.local?.sources;
     const desk = src?.desktopDirCount
       ? ` e do Claude Desktop (${int(src.desktopDirCount)} pasta${src.desktopDirCount === 1 ? "" : "s"})`
@@ -433,6 +451,7 @@ export function mountPanel(root: HTMLElement) {
   }
 
   function emptyLocal() {
+    if (isCodex()) return `<div class="card"><div class="empty">${I.plug}Nenhum log local do Codex encontrado em ~/.codex/sessions (ou CODEX_HOME). Use o Codex para registrar atividade.</div></div>`;
     return `<div class="card"><div class="empty">${I.plug}Nenhum log local do Claude Code encontrado ainda.<br>Os transcripts ficam em <b>~/.claude/projects</b> e aparecem aqui assim que você usar o Claude Code.</div></div>`;
   }
 
@@ -441,6 +460,7 @@ export function mountPanel(root: HTMLElement) {
     if (!s) return;
     const el = $("#ft-status");
     const dotCls = s.error ? (s.usage ? "warn" : "err") : "";
+    if (isCodex()) { el.textContent = `último registro ${ago(s.updatedAt)} · leitura local a cada 30 s`; return; }
     const next = s.nextRefreshAt ? Math.max(0, s.nextRefreshAt - Date.now()) : null;
     const parts = [`Atualizado ${ago(s.updatedAt)}`];
     if (s.refreshing) parts.push("atualizando…");
@@ -449,6 +469,8 @@ export function mountPanel(root: HTMLElement) {
   }
 
   function render(s: Snapshot) {
+    rawSnapshot = s;
+    s = providerSnapshot(s, settings?.provider ?? "claude");
     snap = s;
     const scroll = body.scrollTop;
     renderAccount(s);
@@ -461,6 +483,12 @@ export function mountPanel(root: HTMLElement) {
       projects: renderProjects(s),
     };
     root.querySelectorAll<HTMLElement>(".pane").forEach((p) => (p.innerHTML = panes[p.dataset.pane as Tab]));
+    if (isCodex()) {
+      root.querySelectorAll<HTMLElement>(".tile").forEach((tile) => {
+        if (tile.textContent?.includes("Custo eq.")) tile.innerHTML = "<span>Custo eq. API</span><b>—</b><em>Não estimado para Codex</em>";
+      });
+      root.querySelectorAll<HTMLElement>(".tbl tr").forEach((tr) => { if (tr.lastElementChild) tr.lastElementChild.textContent = tr.closest("thead") ? "Eq. API" : "—"; });
+    }
     body.scrollTop = scroll;
     $("#btn-refresh").classList.toggle("spin", s.refreshing);
     renderFooter();
@@ -495,6 +523,11 @@ export function mountPanel(root: HTMLElement) {
     $("#sheet").innerHTML = `
       <div class="sheet-hd"><button class="ib" data-close>${I.back}</button><b>Configurações</b></div>
       <div class="sheet-body">
+        <div class="card"><h3>Claude / Codex</h3>
+          <div class="row"><label>Mostrar uso de</label>${seg("provider", st.provider, [["claude", "Claude"], ["codex", "Codex"]])}</div>
+          <div class="row"><label>Atalho para alternar<small>${st.providerShortcutFailed ? "Atalho indisponível: escolha outra combinação." : "Clique e pressione a tecla ou combinação desejada. Padrão: PgUp."}</small></label><button class="btn" id="capture-provider-key">${esc(st.providerShortcut.replace("PageUp", "PgUp"))}</button></div>
+          <div class="row"><label>Restaurar atalho</label><button class="btn" data-act-s="reset-shortcut">PgUp</button></div>
+        </div>
         <div class="card">
           <h3>Atualização</h3>
           <div class="row"><label>Consultar limites do plano a cada<small>Logs locais são lidos a cada 30 s</small></label>
@@ -533,6 +566,7 @@ export function mountPanel(root: HTMLElement) {
             <div class="seg" data-multi="thresholds">${[50, 75, 90, 95].map((t) => `<button data-v="${t}" class="${st.thresholds.includes(t) ? "on" : ""}">${t}%</button>`).join("")}</div></div>
         </div>
         <div class="card about">
+          ${isCodex() ? `<div class="about-logo">${providerMark("codex")}</div><b>Codex Usage</b> v${esc(s?.appVersion ?? "")}<br>Fonte: ${esc(L?.roots.join(", ") ?? "~/.codex/sessions")}<br>${L ? `${int(L.files)} arquivos · ${int(L.records)} registros` : "Sem registros locais"}` : `
           <div class="about-logo">${claudeMark()}</div>
           <b>Claude Usage</b> v${esc(s?.appVersion ?? "")}<br>
           Claude Code detectado: <b>${esc(s?.claudeVersion ?? "—")}</b><br>
@@ -542,6 +576,7 @@ export function mountPanel(root: HTMLElement) {
           Logs (terminal): ${esc(L?.sources?.cliRoots.join(", ") || "—")}<br>
           Claude Desktop: ${L?.sources ? `${int(L.sources.desktopDirCount)} pasta(s) com sessões, ${int(L.sources.desktopFileCount)} arquivo(s) — procurado em ${esc(L.sources.desktopBases.filter((b) => b[1]).map((b) => b[0]).join(", ") || "nenhuma pasta do app encontrada")}` : "—"}<br>
           ${L ? `${int(L.files)} arquivos · ${int(L.records)} registros · varredura ${L.scanMs} ms<br>` : ""}
+          `}
           <div style="margin-top:10px;display:flex;gap:6px"><button class="btn danger" data-act-s="quit">Sair do app</button></div>
         </div>
       </div>`;
@@ -552,6 +587,7 @@ export function mountPanel(root: HTMLElement) {
     settings = { ...settings, ...patch };
     applyPrefs(settings);
     settings = await invoke<Settings>("update_settings", { settings });
+    if (rawSnapshot) render(rawSnapshot);
     renderSheet();
   }
 
@@ -581,7 +617,22 @@ export function mountPanel(root: HTMLElement) {
       }
       return saveSettings({ [name]: !settings[name] } as Partial<Settings>);
     }
+    if (t.closest("#capture-provider-key")) {
+      t.closest("button")!.textContent = "Pressione o atalho…";
+      const capture = (ev: KeyboardEvent) => {
+        ev.preventDefault(); ev.stopImmediatePropagation();
+        if (["Control", "Alt", "Shift", "Meta"].includes(ev.key)) return;
+        window.removeEventListener("keydown", capture, true);
+        if (ev.key === "Escape") return renderSheet();
+        const key = ev.code.startsWith("Key") ? ev.code.slice(3) : ev.code.startsWith("Digit") ? ev.code.slice(5) : ev.code;
+        const keys = [...(ev.ctrlKey ? ["Control"] : []), ...(ev.altKey ? ["Alt"] : []), ...(ev.shiftKey ? ["Shift"] : []), ...(ev.metaKey ? ["Super"] : []), key].join("+");
+        saveSettings({ providerShortcut: keys });
+      };
+      window.addEventListener("keydown", capture, true);
+      return;
+    }
     const act = t.closest<HTMLElement>("[data-act-s]")?.dataset.actS;
+    if (act === "reset-shortcut") return saveSettings({ providerShortcut: "PageUp" });
     if (act === "reset-pos") invoke("reset_widget_position");
     if (act === "quit") invoke("quit_app");
   });
@@ -596,6 +647,7 @@ export function mountPanel(root: HTMLElement) {
 
   invoke<Settings>("get_settings").then((st) => {
     settings = st;
+    if (rawSnapshot) render(rawSnapshot);
     $("#btn-pin").classList.toggle("on", st.pinned);
   });
   invoke<Snapshot>("get_snapshot").then((s) => {
@@ -613,6 +665,8 @@ export function mountPanel(root: HTMLElement) {
   listen<Settings>("settings", (st) => {
     settings = st;
     applyPrefs(st);
+    $("#btn-provider").title = `Alternar Claude / Codex (${st.providerShortcut})`;
+    if (rawSnapshot) render(rawSnapshot);
     $("#btn-pin").classList.toggle("on", st.pinned);
     if ($("#sheet").classList.contains("open")) renderSheet();
   });
@@ -626,6 +680,6 @@ export function mountPanel(root: HTMLElement) {
     if (document.visibilityState === "visible") renderFooter();
   }, 1000);
   setInterval(() => {
-    if (document.visibilityState === "visible" && snap) render(snap);
+    if (document.visibilityState === "visible" && snap) render(rawSnapshot ?? snap);
   }, 30_000);
 }

@@ -120,6 +120,7 @@ export interface ServiceStatus {
 }
 
 export interface Snapshot {
+  codex?: Snapshot | null;
   usage?: UsageRaw | null;
   profile?: Record<string, any> | null;
   creds?: Creds | null;
@@ -139,6 +140,9 @@ export interface Snapshot {
 }
 
 export interface Settings {
+  provider: "claude" | "codex";
+  providerShortcut: string;
+  providerShortcutFailed?: boolean;
   refreshSecs: number;
   widgetVisible: boolean;
   widgetPos?: [number, number] | null;

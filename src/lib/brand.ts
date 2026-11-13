@@ -30,3 +30,6 @@ export const claudeMark = () =>
   mark("claude-logo", "Claude", `<span class="wordmark wm-claude" aria-label="Claude">Claude</span>`);
 
 export const hasOfficialLogos = () => !!find("claude-logo");
+
+export const codexMark = () => mark("codex-logo", "ChatGPT / Codex", `<span class="wordmark">Codex</span>`);
+export const providerMark = (provider: string) => provider === "codex" ? codexMark() : claudeMark();

@@ -41,6 +41,8 @@ export async function openUrl(url: string) {
 
 // ---------------------------------------------------------------- mock
 let mockSettings: Settings = {
+  provider: "claude",
+  providerShortcut: "PageUp",
   refreshSecs: 180,
   widgetVisible: true,
   widgetPos: null,
@@ -63,7 +65,7 @@ let mockSettings: Settings = {
   platform: "windows",
 };
 
-function mockSnapshot(): Snapshot {
+function mockClaudeSnapshot(): Snapshot {
   const now = Date.now();
   const h = 3600_000;
   const q = new URLSearchParams(location.search);
@@ -186,6 +188,19 @@ function mockSnapshot(): Snapshot {
   };
 }
 
+function mockSnapshot(): Snapshot {
+  const claude = mockClaudeSnapshot();
+  const codex = mockClaudeSnapshot();
+  codex.usage = { five_hour: { utilization: 47, resets_at: new Date(Date.now() + 7200000).toISOString() }, seven_day: { utilization: 23, resets_at: new Date(Date.now() + 3 * 86400000).toISOString() } };
+  codex.profile = { plan: "Plus · demonstração", account: { name: "Pessoa Exemplo", email: "pessoa@example.com" } };
+  codex.creds = null;
+  codex.service = null;
+  codex.error = null;
+  codex.renewing = false;
+  if (codex.local) codex.local.models = codex.local.models.map((m, i) => ({ ...m, model: `codex-demo-${i}`, display: `Codex · modelo ${i + 1}`, priced: false }));
+  return { ...claude, codex };
+}
+
 function mockService(kind: string | null, now: number): Snapshot["service"] {
   const base = { url: "https://status.claude.com", checkedAt: now - 90_000 };
   if (kind === "minor")
@@ -212,6 +227,10 @@ function mockService(kind: string | null, now: number): Snapshot["service"] {
 
 async function mockInvoke(cmd: string, args?: Record<string, unknown>): Promise<unknown> {
   switch (cmd) {
+    case "toggle_provider":
+      mockSettings.provider = mockSettings.provider === "codex" ? "claude" : "codex";
+      window.dispatchEvent(new CustomEvent("mock:settings", { detail: mockSettings }));
+      return null;
     case "get_snapshot":
       return mockSnapshot();
     case "get_settings":

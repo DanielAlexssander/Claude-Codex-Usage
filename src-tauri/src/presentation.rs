@@ -9,6 +9,7 @@
 
 use crate::state::AppState;
 use crate::{diag_log, windows};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -23,11 +24,19 @@ static HIDDEN_FOR_FULLSCREEN: AtomicBool = AtomicBool::new(false);
 /// o atalho não pôde ser registrado (provavelmente outro app já usa a mesma combinação)
 pub static SHORTCUT_FAILED: AtomicBool = AtomicBool::new(false);
 
+pub static PROVIDER_SHORTCUT_FAILED: AtomicBool = AtomicBool::new(false);
+static PROVIDER_SHORTCUT: Mutex<Option<String>> = Mutex::new(None);
+
 pub fn plugin() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     tauri_plugin_global_shortcut::Builder::new()
-        .with_handler(|app, _shortcut: &Shortcut, event| {
+        .with_handler(|app, shortcut: &Shortcut, event| {
             if event.state == ShortcutState::Pressed {
-                windows::toggle_panel(app, None);
+                let keys = app.state::<AppState>().settings.lock().unwrap().provider_shortcut.clone();
+                if keys.parse::<Shortcut>().ok().as_ref() == Some(shortcut) {
+                    crate::toggle_provider(app.clone());
+                } else {
+                    windows::toggle_panel(app, None);
+                }
             }
         })
         .build()
@@ -56,6 +65,19 @@ pub fn apply(app: &AppHandle) {
             let _ = gs.unregister(SHORTCUT);
         }
         SHORTCUT_FAILED.store(false, Ordering::Relaxed);
+    }
+
+    let keys = app.state::<AppState>().settings.lock().unwrap().provider_shortcut.clone();
+    let mut old = PROVIDER_SHORTCUT.lock().unwrap();
+    if old.as_ref() != Some(&keys) || PROVIDER_SHORTCUT_FAILED.load(Ordering::Relaxed) {
+        if let Some(previous) = old.take() { let _ = gs.unregister(previous.as_str()); }
+        match gs.register(keys.as_str()) {
+            Ok(()) => { *old = Some(keys); PROVIDER_SHORTCUT_FAILED.store(false, Ordering::Relaxed); }
+            Err(e) => {
+                PROVIDER_SHORTCUT_FAILED.store(true, Ordering::Relaxed);
+                diag_log(&format!("atalho de provedor {keys} não registrado: {e}"));
+            }
+        }
     }
 
     // widget e painel: nenhum dos dois aparece na transmissão quando a opção está desligada

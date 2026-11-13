@@ -1,4 +1,5 @@
 import type { HistPoint, LimitWindow, Snapshot, UsageRaw } from "./types";
+import { pct } from "./format";
 
 const H = 3600_000;
 const KNOWN: Record<string, { label: string; short: string; period: number; order: number }> = {
@@ -75,8 +76,8 @@ export function limitWindows(usage: UsageRaw | null | undefined): LimitWindow[] 
       if (Array.isArray(shares)) {
         const sh = (shares as any[]).find((x) => x?.limit_index === i);
         if (sh && typeof sh.allowance_percent_of_weekly === "number") {
-          note = `pode usar até ${sh.allowance_percent_of_weekly}% do semanal` +
-            (typeof sh.used_percent_of_weekly === "number" ? ` · usou ${sh.used_percent_of_weekly}% dele` : "");
+          note = `pode usar até ${pct(sh.allowance_percent_of_weekly)} do semanal` +
+            (typeof sh.used_percent_of_weekly === "number" ? ` · usou ${pct(sh.used_percent_of_weekly)} dele` : "");
         }
       }
       const weekly = l.group === "weekly" || String(l.kind ?? "").startsWith("weekly");

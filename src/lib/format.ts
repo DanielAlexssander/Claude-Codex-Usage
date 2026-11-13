@@ -4,7 +4,7 @@ const usd = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD",
 const usd0 = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 export const int = (n: number) => nf0.format(n);
-export const pct = (n: number) => `${nf0.format(Math.round(n))}%`;
+export const pct = (n: number) => `${nf0.format(Math.floor(n))}%`;
 export const money = (n: number) => (Math.abs(n) >= 1000 ? usd0.format(n) : usd.format(n));
 
 /** 1234567 → "1,2 mi"; 12345 → "12,3 mil" */
