@@ -67,7 +67,7 @@ fn phys_size(w: &WebviewWindow, logical: (f64, f64)) -> (i32, i32) {
     }
 }
 const WIDGET_SIZE: (f64, f64) = (104.0, 104.0);
-const PANEL_SIZE: (f64, f64) = (380.0, 560.0);
+const PANEL_SIZE: (f64, f64) = (420.0, 560.0);
 
 /// Garante o tamanho lógico fixo da janela no monitor em que ela está agora.
 /// Ao trocar de monitor com escalas diferentes (notebook 150% + monitor 100%, dock/undock,

@@ -37,6 +37,7 @@ export function mountPanel(root: HTMLElement) {
         <div class="brand-title"><b>Claude Usage</b><span>Uso do Claude Code</span></div>
       </div>
       <div class="hd-actions">
+        <button class="ib svc-btn" id="btn-svc" hidden aria-expanded="false" aria-controls="svc" title="Instabilidade no serviço: mostrar aviso">${I.status}</button>
         <button class="ib" id="btn-provider" title="Alternar Claude / Codex (PgUp)" aria-label="Alternar Claude e Codex">⇄</button>
         <button class="ib" id="btn-refresh" title="Atualizar agora (Ctrl+R)">${I.refresh}</button>
         <button class="ib" id="btn-pin" title="Fixar painel (não esconder ao perder o foco)">${I.pin}</button>
@@ -46,7 +47,6 @@ export function mountPanel(root: HTMLElement) {
     </header>
     <div class="acct" id="acct"></div>
     <div class="banner" id="banner" hidden></div>
-    <div class="svc" id="svc" hidden></div>
     <nav class="tabs" role="tablist">
       <div class="tab-ind" id="tab-ind"></div>
       ${TABS.map((t, i) => `<button class="tab" role="tab" data-tab="${t.id}" aria-selected="${i === 0}">${t.label}</button>`).join("")}
@@ -54,6 +54,7 @@ export function mountPanel(root: HTMLElement) {
     <main class="body" id="body">
       ${TABS.map((t, i) => `<section class="pane ${i === 0 ? "active" : ""}" data-pane="${t.id}"></section>`).join("")}
     </main>
+    <div class="svc" id="svc" hidden></div>
     <footer class="ft">
       <span id="ft-status"><span class="ft-dot"></span>carregando…</span>
       <button class="link" id="lnk-web">claude.ai › Uso</button>
@@ -68,6 +69,8 @@ export function mountPanel(root: HTMLElement) {
   const tip = $("#tip");
   let snap: Snapshot | null = null;
   let rawSnapshot: Snapshot | null = null;
+  // o aviso de instabilidade começa fechado; o botão do cabeçalho abre e fecha
+  let svcOpen = false;
   const isCodex = () => settings?.provider === "codex";
   let settings: Settings | null = null;
 
@@ -146,6 +149,11 @@ export function mountPanel(root: HTMLElement) {
     }
     if (a.dataset.act === "retry") refresh();
     if (a.dataset.act === "docs") openUrl("https://docs.claude.com/en/docs/claude-code/setup");
+  });
+
+  $("#btn-svc").addEventListener("click", () => {
+    svcOpen = !svcOpen;
+    if (snap) renderService(snap);
   });
 
   $("#svc").addEventListener("click", (e) => {
@@ -230,12 +238,18 @@ export function mountPanel(root: HTMLElement) {
 
   function renderService(s: Snapshot) {
     const el = $("#svc");
+    const btn = $("#btn-svc");
     const issue = serviceIssue(s);
     const v = s.service;
     if (!issue || !v) {
       el.hidden = true;
+      btn.hidden = true;
       return;
     }
+    btn.hidden = false;
+    btn.className = `ib svc-btn s-${issue.severity}${svcOpen ? " on" : ""}`;
+    btn.setAttribute("aria-expanded", String(svcOpen));
+    btn.title = `${issue.title}: ${svcOpen ? "fechar" : "mostrar"} aviso`;
     const inc = v.incidents.slice(0, 1);
     const comps = v.components.slice(0, 3);
     const lines = inc.length
@@ -248,7 +262,7 @@ export function mountPanel(root: HTMLElement) {
       : `<div class="svc-desc">${esc(v.description)}</div>`;
     const more = v.incidents.length > inc.length ? `<button class="svc-more" data-url="${esc(v.url)}">+${v.incidents.length - inc.length} ${v.incidents.length - inc.length === 1 ? "outro incidente" : "outros incidentes"}</button>` : "";
     el.className = `svc s-${issue.severity}`;
-    el.hidden = false;
+    el.hidden = !svcOpen;
     el.innerHTML = `
       <span class="svc-ic">${I.status}</span>
       <div class="svc-main">

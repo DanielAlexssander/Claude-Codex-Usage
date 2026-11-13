@@ -1,4 +1,4 @@
-/* Painel de uso (janela 404×660 transparente) */
+/* Painel de uso (janela 420×560 transparente) */
 body.view-panel {
   padding: 6px;
 }
@@ -152,6 +152,27 @@ body.view-panel #app {
 .ib.on { color: #fff; background: rgba(93, 182, 245, 0.25); }
 .ib.spin svg { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* botão de instabilidade: só aparece com incidente; abre/fecha o aviso */
+.ib[hidden] { display: none; }
+.svc-btn { --svc: var(--warning); position: relative; color: var(--svc); }
+.svc-btn.s-major { --svc: var(--serious); }
+.svc-btn.s-maintenance { --svc: #5db6f5; }
+.svc-btn svg { animation: svc-beat 1.6s ease-in-out infinite; }
+.svc-btn::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--svc);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+.svc-btn:hover { color: var(--svc); }
+.svc-btn.on { color: var(--svc); background: color-mix(in srgb, var(--svc) 22%, transparent); }
+.svc-btn.on::after { display: none; }
 
 /* ---------- conta ---------- */
 .acct {
@@ -742,7 +763,9 @@ body.view-panel #app {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  margin: 10px 12px 0;
+  margin: 0 12px 10px;
+  max-height: 168px;
+  overflow-y: auto;
   padding: 9px 12px;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--svc) 10%, var(--surface-1));
