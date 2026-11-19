@@ -47,7 +47,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
           $exe = Get-ChildItem "src-tauri/target/release/*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-          Copy-Item $exe.FullName "out/Claude Usage.exe"
+          Copy-Item $exe.FullName "out/Claude + Codex Usage.exe"
           Copy-Item "src-tauri/target/release/bundle/nsis/*.exe" out/
           Copy-Item "src-tauri/target/release/bundle/msi/*.msi" out/
 

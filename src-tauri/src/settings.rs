@@ -14,6 +14,10 @@ pub struct Settings {
     pub widget_visible: bool,
     /// Posição física (px) do widget, salva após arrastar.
     pub widget_pos: Option<(i32, i32)>,
+    /// Estilo do widget: "circle" (disco flutuante) | "island" (pílula na borda da tela).
+    pub widget_style: String,
+    /// Borda em que a ilha fica: "top" | "bottom" | "left" | "right".
+    pub island_edge: String,
     /// "system" | "light" | "dark"
     pub theme: String,
     /// Notificações nativas ao cruzar limiares.
@@ -49,6 +53,8 @@ impl Default for Settings {
             provider_shortcut: "PageUp".into(),
             widget_visible: true,
             widget_pos: None,
+            widget_style: "circle".into(),
+            island_edge: "top".into(),
             theme: "system".into(),
             notifications: true,
             thresholds: vec![75, 90],
@@ -104,6 +110,12 @@ impl Settings {
         if !matches!(self.widget_metric.as_str(), "five_hour" | "seven_day") {
             self.widget_metric = "five_hour".into();
         }
+        if !matches!(self.widget_style.as_str(), "circle" | "island") {
+            self.widget_style = "circle".into();
+        }
+        if !matches!(self.island_edge.as_str(), "top" | "bottom" | "left" | "right") {
+            self.island_edge = "top".into();
+        }
         self.thresholds.retain(|t| (1..=100).contains(t));
         self.thresholds.sort_unstable();
         self.thresholds.dedup();
@@ -127,5 +139,15 @@ mod tests {
         assert_eq!(conflict.provider_shortcut, "PageUp");
         let custom = Settings { provider_shortcut: "Control+F9".into(), ..Settings::default() }.sanitized();
         assert_eq!(custom.provider_shortcut, "Control+F9");
+    }
+
+    #[test]
+    fn widget_style_and_island_edge_fall_back_to_safe_values() {
+        let old: Settings = serde_json::from_str(r#"{"theme":"dark"}"#).unwrap();
+        assert_eq!((old.widget_style.as_str(), old.island_edge.as_str()), ("circle", "top"));
+        let bad = Settings { widget_style: "square".into(), island_edge: "middle".into(), ..Settings::default() }.sanitized();
+        assert_eq!((bad.widget_style.as_str(), bad.island_edge.as_str()), ("circle", "top"));
+        let ok = Settings { widget_style: "island".into(), island_edge: "right".into(), ..Settings::default() }.sanitized();
+        assert_eq!((ok.widget_style.as_str(), ok.island_edge.as_str()), ("island", "right"));
     }
 }

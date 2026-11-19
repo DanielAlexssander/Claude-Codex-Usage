@@ -89,7 +89,7 @@ pub fn check_webview() -> bool {
             #[cfg(target_os = "windows")]
             {
                 let open = message_box(
-                    "Claude Usage",
+                    "Claude + Codex Usage",
                     "Este computador não tem o Microsoft Edge WebView2 Runtime, que o app usa para \
                      desenhar a janela.\n\nEle é gratuito, da Microsoft, e já vem no Windows 11 e na \
                      maioria dos Windows 10 atualizados. Se a instalação for bloqueada, peça à TI.\n\n\
@@ -123,7 +123,7 @@ pub fn fatal(context: &str, detail: &str) {
         ""
     };
     message_box(
-        "Claude Usage não conseguiu abrir",
+        "Claude + Codex Usage não conseguiu abrir",
         &format!("{context}.\n\n{detail}{hint}\n\nDetalhes em:\n{}", log_path()),
         false,
         true,

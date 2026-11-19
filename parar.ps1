@@ -1,9 +1,9 @@
-﻿# Encerra qualquer instância do Claude Usage que tenha ficado aberta (inclusive escondida
+﻿# Encerra qualquer instância do Claude + Codex Usage que tenha ficado aberta (inclusive escondida
 # na bandeja) e o servidor de desenvolvimento (Vite) preso na porta 1420.
 # Uso: powershell -ExecutionPolicy Bypass -File .\parar.ps1
 param([switch]$Silencioso)
 
-# Pega qualquer nome que o executável tenha recebido ("Claude Usage", "claude-usage"...).
+# Pega qualquer nome que o executável tenha recebido ("Claude + Codex Usage", "Claude Usage", "claude-usage"...).
 # Não afeta o Claude Desktop ("claude.exe").
 $procs = Get-Process -ErrorAction SilentlyContinue | Where-Object {
   $n = $_.ProcessName

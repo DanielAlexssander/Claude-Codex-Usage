@@ -1,6 +1,8 @@
 mod api;
 mod codex;
 mod credentials;
+mod island;
+mod legacy;
 mod local_stats;
 mod poller;
 mod presentation;
@@ -73,7 +75,10 @@ fn update_settings(app: AppHandle, settings: Settings) -> SettingsPayload {
     let new = settings.sanitized();
     let (widget_changed, interval_changed, visible) = {
         let mut cur = st.settings.lock().unwrap();
-        let wc = cur.widget_visible != new.widget_visible;
+        // trocar o estilo (círculo/ilha) ou a borda da ilha reposiciona e redimensiona a janela
+        let wc = cur.widget_visible != new.widget_visible
+            || cur.widget_style != new.widget_style
+            || cur.island_edge != new.island_edge;
         let ic = cur.refresh_secs != new.refresh_secs || cur.service_status != new.service_status;
         let pos = cur.widget_pos; // posição é controlada pelo arrasto, não pelo front
         *cur = Settings { widget_pos: pos, initialized: true, ..new };
@@ -143,6 +148,13 @@ fn toggle_panel(app: AppHandle) {
 #[tauri::command]
 fn hide_panel(app: AppHandle) {
     windows::hide_panel(&app);
+}
+
+/// Abre o painel já na tela de configurações (botão da ilha).
+#[tauri::command]
+fn open_settings(app: AppHandle) {
+    windows::show_panel(&app, None);
+    let _ = app.emit_to(windows::PANEL, "open-settings", ());
 }
 
 /// Abre o Claude Code (CLI) num terminal. Ao iniciar de forma interativa ele renova o login
@@ -267,6 +279,12 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(presentation::plugin())
+        // o WebView acabou de se acoplar à janela: some com o "fantasma" (ver windows::hide_ghost)
+        .on_page_load(|webview, _| {
+            if let Some(w) = webview.app_handle().get_webview_window(webview.label()) {
+                windows::hide_ghost(&w);
+            }
+        })
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -286,10 +304,18 @@ pub fn run() {
                         let _ = app.autolaunch().disable();
                         diag_log("removido o registro de inicialização do build de desenvolvimento");
                     }
-                } else if first || enabled {
-                    // primeira execução: liga; nas outras, regrava o caminho deste .exe (ele pode ter
-                    // sido movido, renomeado ou o registro podia apontar para um build de desenvolvimento)
-                    apply_autostart(app.handle(), true);
+                } else {
+                    // o app se chamava "Claude Usage": a entrada antiga sai e, se existia, a opção
+                    // continua ligada com o nome atual (sem abrir duas vezes no login)
+                    let had_old = legacy::take_old_autostart();
+                    if had_old {
+                        diag_log("registro antigo de inicialização (\"Claude Usage\") migrado para o nome atual");
+                    }
+                    if first || enabled || had_old {
+                        // primeira execução: liga; nas outras, regrava o caminho deste .exe (ele pode ter
+                        // sido movido, renomeado ou o registro podia apontar para um build de desenvolvimento)
+                        apply_autostart(app.handle(), true);
+                    }
                 }
                 if first {
                     st.settings.lock().unwrap().initialized = true;
@@ -315,8 +341,13 @@ pub fn run() {
                 widget.on_window_event(move |ev| {
                     if let WindowEvent::Moved(pos) = ev {
                         let st = h.state::<AppState>();
-                        st.settings.lock().unwrap().widget_pos = Some((pos.x, pos.y));
-                        st.mark_settings_dirty();
+                        let mut s = st.settings.lock().unwrap();
+                        // a ilha é posicionada pelo app: só o arrasto do círculo vira posição salva
+                        if s.widget_style == "circle" {
+                            s.widget_pos = Some((pos.x, pos.y));
+                            drop(s);
+                            st.mark_settings_dirty();
+                        }
                     }
                 });
             }
@@ -339,6 +370,7 @@ pub fn run() {
 
             presentation::apply(&handle);
             presentation::start_watcher(handle.clone());
+            island::start_watcher(handle.clone());
             tauri::async_runtime::spawn(poller::run(handle));
             startup::UI_READY.store(true, std::sync::atomic::Ordering::Relaxed);
             Ok(())
@@ -353,6 +385,7 @@ pub fn run() {
             toggle_panel,
             toggle_provider,
             hide_panel,
+            open_settings,
             reset_widget_position,
             renew_login,
             quit_app

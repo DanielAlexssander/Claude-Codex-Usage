@@ -1,10 +1,10 @@
-﻿# Gera o executável do Claude Usage no Windows.
+﻿# Gera o executável do Claude + Codex Usage no Windows.
 # Uso (PowerShell, na pasta do projeto):
 #   powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 #   powershell -ExecutionPolicy Bypass -File .\build-windows.ps1 -SemInstalador   (só o .exe)
 #
 # Saída em .\release\
-#   Claude Usage.exe          -> um único .exe, roda sem instalar
+#   Claude + Codex Usage.exe  -> um único .exe, roda sem instalar
 #   *-setup.exe / *.msi             -> instaladores (opcionais)
 
 param(
@@ -98,7 +98,7 @@ $out = Join-Path $PSScriptRoot "release"
 New-Item -ItemType Directory -Force $out | Out-Null
 # se o app estiver aberto, o .exe fica travado e não pode ser substituído
 & (Join-Path $PSScriptRoot "parar.ps1") -Silencioso
-Copy-Item $exe.FullName (Join-Path $out "Claude Usage.exe") -Force
+Copy-Item $exe.FullName (Join-Path $out "Claude + Codex Usage.exe") -Force
 Get-ChildItem "src-tauri\target\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue | Copy-Item -Destination $out -Force
 Get-ChildItem "src-tauri\target\release\bundle\msi\*.msi" -ErrorAction SilentlyContinue | Copy-Item -Destination $out -Force
 
@@ -107,6 +107,6 @@ if ($buildOk) {
   Write-Host "Pronto! Arquivos em: $out" -ForegroundColor Green
 } else {
   Write-Host "Executável portátil gerado, mas os instaladores falharam (provavelmente download do NSIS/WiX bloqueado pela rede)." -ForegroundColor Yellow
-  Write-Host "O 'Claude Usage.exe' funciona sozinho. Para pular os instaladores: .\build-windows.ps1 -SemInstalador" -ForegroundColor Yellow
+  Write-Host "O 'Claude + Codex Usage.exe' funciona sozinho. Para pular os instaladores: .\build-windows.ps1 -SemInstalador" -ForegroundColor Yellow
 }
 Get-ChildItem $out | Format-Table Name, @{n="MB";e={[math]::Round($_.Length/1MB,1)}}

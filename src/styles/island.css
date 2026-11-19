@@ -1,0 +1,271 @@
+/* ------------------------------------------------------------------
+   Ilha — janela 320×196 transparente, fixa numa borda da tela.
+   A pílula preta cresce dentro dela (só CSS; a janela não muda de
+   tamanho). Medidas iguais a src-tauri/src/island.rs:
+   folga 10 · fechada 128×36 (topo/base) ou 36×112 (laterais) ·
+   aberta 300×176.
+------------------------------------------------------------------- */
+body.style-island { display: block; }
+
+.isl {
+  --pad: 10px;
+  --cw: 128px;
+  --ch: 36px;
+  --ow: 300px;
+  --oh: 176px;
+  --spring: cubic-bezier(0.32, 1.25, 0.5, 1);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --lvl: var(--accent);
+  --ink: rgba(255, 255, 255, 0.92);
+  --ink-2: rgba(255, 255, 255, 0.5);
+  --fill: rgba(255, 255, 255, 0.08);
+  position: absolute;
+  width: var(--cw);
+  height: var(--ch);
+  border-radius: 18px;
+  background: #040404;
+  color: var(--ink);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1), 0 3px 9px rgba(0, 0, 0, 0.3);
+  /* fechar: suave, sem quicar */
+  transition:
+    width 0.36s var(--ease),
+    height 0.36s var(--ease),
+    border-radius 0.36s var(--ease),
+    box-shadow 0.3s var(--ease);
+}
+.isl.open {
+  width: var(--ow);
+  height: var(--oh);
+  border-radius: 30px;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.45);
+  /* abrir: mola com um leve "quique", como no iPhone */
+  transition:
+    width 0.55s var(--spring),
+    height 0.55s var(--spring),
+    border-radius 0.55s var(--spring),
+    box-shadow 0.3s var(--ease);
+}
+.isl[data-level="crit"] { --lvl: var(--critical); }
+.isl[data-level="error"] { --lvl: #8b8c84; }
+
+/* âncora em cada borda (a janela já está centralizada nela) */
+.isl[data-edge="top"] { top: var(--pad); left: 50%; translate: -50% 0; }
+.isl[data-edge="bottom"] { bottom: var(--pad); left: 50%; translate: -50% 0; }
+.isl[data-edge="left"] { left: var(--pad); top: 50%; translate: 0 -50%; }
+.isl[data-edge="right"] { right: var(--pad); top: 50%; translate: 0 -50%; }
+.isl[data-edge="left"],
+.isl[data-edge="right"] { --cw: 36px; --ch: 112px; }
+
+/* a ilha é sempre escura: usa a versão da logo para fundo escuro */
+.isl .logo-light { display: none !important; }
+.isl .logo-dark { display: block !important; }
+
+/* ---------- fechada ---------- */
+.isl-compact {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px 0 13px;
+  transition: opacity 0.2s var(--ease) 0.08s, filter 0.2s var(--ease) 0.08s, scale 0.3s var(--ease);
+}
+.isl.open .isl-compact {
+  opacity: 0;
+  filter: blur(4px);
+  scale: 0.85;
+  pointer-events: none;
+  transition: opacity 0.12s var(--ease), filter 0.12s var(--ease), scale 0.2s var(--ease);
+}
+.isl[data-edge="left"] .isl-compact,
+.isl[data-edge="right"] .isl-compact {
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 0 10px;
+  gap: 0;
+}
+
+.isl-mark { display: grid; place-items: center; width: 15px; flex: none; line-height: 0; }
+.isl-mark img,
+.isl-mark svg { width: 100%; height: auto; }
+.isl-mark .wordmark { font-size: 8px; line-height: 1; color: #fff; }
+
+.isl-val {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.isl-val i { font-style: normal; font-size: 0.72em; font-weight: 500; color: var(--ink-2); margin-left: 1px; }
+.isl[data-level="error"] .isl-val i { display: none; }
+.isl[data-edge="left"] .isl-val,
+.isl[data-edge="right"] .isl-val { margin: 0; font-size: 12px; text-align: center; }
+.isl[data-edge="left"] .isl-val i,
+.isl[data-edge="right"] .isl-val i { display: block; margin: 0; font-size: 9px; line-height: 1; }
+
+.isl-ring { width: 18px; height: 18px; flex: none; rotate: -90deg; }
+.isl-ring circle { fill: none; stroke-width: 2.6; }
+.isl-ring .trk { stroke: rgba(255, 255, 255, 0.16); }
+.isl-ring .arc {
+  stroke: var(--lvl);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s var(--ease), stroke 0.3s;
+}
+
+/* instabilidade no serviço: ponto pulsante logo depois da logo */
+.isl-dot {
+  display: none;
+  order: 1;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  animation: isl-beat 1.6s ease-in-out infinite;
+}
+.isl-compact .isl-mark { order: 0; }
+.isl-val { order: 2; }
+.isl-ring { order: 3; }
+.isl[data-svc="major"] .isl-dot { background: var(--serious); }
+.isl[data-svc="maintenance"] .isl-dot { background: #5db6f5; }
+.isl:not([data-svc=""]) .isl-dot { display: block; }
+@keyframes isl-beat { 50% { opacity: 0.4; } }
+
+/* ---------- aberta ---------- */
+.isl-full {
+  position: absolute;
+  width: var(--ow);
+  height: var(--oh);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px 14px 12px;
+  opacity: 0;
+  filter: blur(6px);
+  scale: 0.94;
+  pointer-events: none;
+  transition: opacity 0.14s var(--ease), filter 0.14s var(--ease), scale 0.2s var(--ease);
+}
+.isl.open .isl-full {
+  opacity: 1;
+  filter: none;
+  scale: 1;
+  pointer-events: auto;
+  transition: opacity 0.28s var(--ease) 0.1s, filter 0.28s var(--ease) 0.1s, scale 0.45s var(--spring) 0.06s;
+}
+/* mesma âncora da pílula: o conteúdo não escorrega enquanto ela cresce */
+.isl[data-edge="top"] .isl-full { top: 0; left: 50%; translate: -50% 0; transform-origin: 50% 0; }
+.isl[data-edge="bottom"] .isl-full { bottom: 0; left: 50%; translate: -50% 0; transform-origin: 50% 100%; }
+.isl[data-edge="left"] .isl-full { left: 0; top: 50%; translate: 0 -50%; transform-origin: 0 50%; }
+.isl[data-edge="right"] .isl-full { right: 0; top: 50%; translate: 0 -50%; transform-origin: 100% 50%; }
+
+.isl button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.isl .isl-hd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  border-radius: 12px;
+  margin: -4px -6px 0;
+  padding: 4px 6px;
+  transition: background 0.15s;
+}
+.isl .isl-hd:hover { background: var(--fill); }
+.isl-mark-lg {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 6px;
+}
+.isl-title { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.isl-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.isl-sub {
+  font-size: 10.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.isl-flag {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 16%, transparent);
+}
+.isl[data-svc="major"] .isl-flag {
+  color: var(--serious);
+  background: color-mix(in srgb, var(--serious) 18%, transparent);
+}
+
+.isl-rows { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 9px; }
+.isl-row-hd {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+.isl-row-hd em { font-style: normal; font-size: 10.5px; color: var(--ink-2); margin-left: 6px; }
+.isl-row-hd b {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.isl-row.crit .isl-row-hd b { color: #ff8a8a; }
+.isl-bar {
+  height: 5px;
+  margin-top: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.isl-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.7s var(--ease) 0.15s;
+}
+.isl-row.crit .isl-bar i { background: var(--critical); }
+/* as barras "enchem" toda vez que a ilha abre */
+.isl:not(.open) .isl-bar i { width: 0 !important; transition: none; }
+.isl-msg { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+
+.isl-acts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.isl-acts button {
+  height: 30px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 10px;
+  background: var(--fill);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, scale 0.15s var(--ease);
+}
+.isl-acts button:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+.isl-acts button:active { scale: 0.94; }
+.isl-acts svg { width: 12px; height: 12px; flex: none; }
+.isl.busy [data-act="refresh"] svg { animation: isl-spin 0.9s linear infinite; }
+@keyframes isl-spin { to { rotate: 360deg; } }

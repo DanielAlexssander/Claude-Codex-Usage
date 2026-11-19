@@ -46,6 +46,9 @@ let mockSettings: Settings = {
   refreshSecs: 180,
   widgetVisible: true,
   widgetPos: null,
+  // prévia no navegador: ?view=widget&style=island&edge=left
+  widgetStyle: new URLSearchParams(location.search).get("style") === "island" ? "island" : "circle",
+  islandEdge: (["top", "bottom", "left", "right"] as const).find((e) => e === new URLSearchParams(location.search).get("edge")) ?? "top",
   theme: "system",
   notifications: true,
   thresholds: [75, 90],
@@ -242,6 +245,9 @@ async function mockInvoke(cmd: string, args?: Record<string, unknown>): Promise<
     case "set_autostart":
       mockSettings = { ...mockSettings, autostart: !!args?.enabled };
       return mockSettings;
+    case "open_settings":
+      window.dispatchEvent(new CustomEvent("mock:open-settings"));
+      return null;
     case "set_pinned":
       mockSettings = { ...mockSettings, pinned: !!args?.pinned };
       return null;

@@ -1,6 +1,7 @@
 import "./styles/tokens.css";
 import "./styles/widget.css";
 import "./styles/panel.css";
+import "./styles/island.css";
 import { invoke, listen, isTauri } from "./lib/ipc";
 import { applyPrefs } from "./lib/prefs";
 import type { Settings } from "./lib/types";
@@ -17,7 +18,17 @@ invoke<Settings>("get_settings").then(applyPrefs).catch(() => {});
 listen<Settings>("settings", applyPrefs);
 
 if (view === "widget") {
-  import("./views/widget").then((m) => m.mountWidget(root));
+  // A mesma janela mostra o círculo ou a ilha, conforme a configuração.
+  invoke<Settings>("get_settings").then((st) => {
+    const style = st.widgetStyle ?? "circle";
+    document.body.classList.add(`style-${style}`);
+    if (style === "island") import("./views/island").then((m) => m.mountIsland(root, st));
+    else import("./views/widget").then((m) => m.mountWidget(root));
+    // trocar o estilo recarrega a janela (o Rust já ajustou tamanho e posição)
+    listen<Settings>("settings", (next) => {
+      if ((next.widgetStyle ?? "circle") !== style) location.reload();
+    });
+  });
 } else {
   import("./views/panel").then((m) => m.mountPanel(root));
 }

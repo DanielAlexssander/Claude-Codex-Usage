@@ -511,7 +511,7 @@ export function mountPanel(root: HTMLElement) {
   // ------------------------------------------------------------ configurações
   function openSheet(open: boolean) {
     const sh = $("#sheet");
-    if (open) renderSheet();
+    if (open) renderSheet(false);
     sh.classList.toggle("open", open);
     sh.setAttribute("aria-hidden", String(!open));
   }
@@ -529,11 +529,14 @@ export function mountPanel(root: HTMLElement) {
   const sw = (name: string, on: boolean, inverted = false) =>
     `<button class="sw" role="switch" data-sw="${name}" aria-checked="${inverted ? !on : on}"></button>`;
 
-  function renderSheet() {
+  /** `keepScroll`: mantém a posição da lista (alterações); abrir a tela começa do topo. */
+  function renderSheet(keepScroll = true) {
     const st = settings;
     if (!st) return;
     const s = snap;
     const L = s?.local;
+    // redesenhar não pode levar a lista de volta ao topo a cada alteração
+    const scroll = $("#sheet").querySelector(".sheet-body")?.scrollTop ?? 0;
     $("#sheet").innerHTML = `
       <div class="sheet-hd"><button class="ib" data-close>${I.back}</button><b>Configurações</b></div>
       <div class="sheet-body">
@@ -555,9 +558,15 @@ export function mountPanel(root: HTMLElement) {
         <div class="card">
           <h3>Widget flutuante</h3>
           <div class="row"><label>Mostrar widget na tela</label>${sw("widgetVisible", st.widgetVisible)}</div>
-          <div class="row"><label>Anel principal mostra</label>${seg("widgetMetric", st.widgetMetric, [["five_hour", "Sessão 5h"], ["seven_day", "Semanal"]])}</div>
+          <div class="row"><label>Estilo<small>${st.widgetStyle === "island" ? "Pílula na borda da tela; passe o mouse para abrir" : "Disco flutuante que você arrasta para onde quiser"}</small></label>${seg("widgetStyle", st.widgetStyle, [["circle", "Círculo"], ["island", "Ilha"]])}</div>
+          ${st.widgetStyle === "island"
+            ? `<div class="row"><label>Posição da ilha<small>Centralizada na borda escolhida</small></label>${seg("islandEdge", st.islandEdge, [["top", "Topo"], ["bottom", "Base"], ["left", "Esquerda"], ["right", "Direita"]])}</div>`
+            : ""}
+          <div class="row"><label>${st.widgetStyle === "island" ? "Mostra" : "Anel principal mostra"}</label>${seg("widgetMetric", st.widgetMetric, [["five_hour", "Sessão 5h"], ["seven_day", "Semanal"]])}</div>
           <div class="row"><label>Esconder em tela cheia${st.platform === "windows" ? "" : " (Windows)"}<small>Some enquanto outro app está em tela cheia ou apresentando (PowerPoint, vídeo) e volta depois</small></label>${sw("hideFullscreen", st.hideFullscreen)}</div>
-          <div class="row"><label>Posição<small>Arraste o widget para mover</small></label><button class="btn" data-act-s="reset-pos">Voltar ao canto</button></div>
+          ${st.widgetStyle === "island"
+            ? ""
+            : `<div class="row"><label>Posição<small>Arraste o widget para mover</small></label><button class="btn" data-act-s="reset-pos">Voltar ao canto</button></div>`}
         </div>
         <div class="card">
           <h3>Transmissão de tela</h3>
@@ -580,9 +589,9 @@ export function mountPanel(root: HTMLElement) {
             <div class="seg" data-multi="thresholds">${[50, 75, 90, 95].map((t) => `<button data-v="${t}" class="${st.thresholds.includes(t) ? "on" : ""}">${t}%</button>`).join("")}</div></div>
         </div>
         <div class="card about">
-          ${isCodex() ? `<div class="about-logo">${providerMark("codex")}</div><b>Codex Usage</b> v${esc(s?.appVersion ?? "")}<br>Fonte: ${esc(L?.roots.join(", ") ?? "~/.codex/sessions")}<br>${L ? `${int(L.files)} arquivos · ${int(L.records)} registros` : "Sem registros locais"}` : `
+          ${isCodex() ? `<div class="about-logo">${providerMark("codex")}</div><b>Claude + Codex Usage</b> v${esc(s?.appVersion ?? "")}<br>Fonte: ${esc(L?.roots.join(", ") ?? "~/.codex/sessions")}<br>${L ? `${int(L.files)} arquivos · ${int(L.records)} registros` : "Sem registros locais"}` : `
           <div class="about-logo">${claudeMark()}</div>
-          <b>Claude Usage</b> v${esc(s?.appVersion ?? "")}<br>
+          <b>Claude + Codex Usage</b> v${esc(s?.appVersion ?? "")}<br>
           Claude Code detectado: <b>${esc(s?.claudeVersion ?? "—")}</b><br>
           Credenciais: ${esc(s?.creds?.source ?? "não encontradas")}<br>
           ${s?.creds?.expiresAt ? `Token expira: ${new Date(s.creds.expiresAt).toLocaleString("pt-BR")}<br>` : ""}
@@ -594,6 +603,7 @@ export function mountPanel(root: HTMLElement) {
           <div style="margin-top:10px;display:flex;gap:6px"><button class="btn danger" data-act-s="quit">Sair do app</button></div>
         </div>
       </div>`;
+    $("#sheet").querySelector(".sheet-body")!.scrollTop = keepScroll ? scroll : 0;
   }
 
   async function saveSettings(patch: Partial<Settings>) {
@@ -688,6 +698,8 @@ export function mountPanel(root: HTMLElement) {
     playEnter();
     invoke<Snapshot>("get_snapshot").then(render);
   });
+  // botão "Ajustes" da ilha: abre o painel já nas configurações
+  listen("open-settings", () => openSheet(true));
 
   // relógio do rodapé / contagens regressivas
   setInterval(() => {

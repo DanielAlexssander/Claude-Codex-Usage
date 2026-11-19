@@ -2,7 +2,7 @@
 name = "claude-usage"
 version = "1.0.0"
 description = "Widget de uso do Claude Code para qualquer assinatura (Pro, Max, Team, Enterprise)"
-authors = ["Claude Usage"]
+authors = ["Claude + Codex Usage"]
 edition = "2021"
 rust-version = "1.82"
 
@@ -32,7 +32,7 @@ portable-pty = "0.9"
 tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_System_Registry"] }
 
 [profile.release]
 codegen-units = 1

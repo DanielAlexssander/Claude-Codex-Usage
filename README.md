@@ -21,6 +21,7 @@ Também tem:
 - **Ritmo semanal:** quanto dá para usar por dia útil até o reset semanal (sábado e domingo não contam) e aviso de "acima do ritmo".
 - **Status do Claude:** consulta `status.claude.com` a cada 5 min. Com instabilidade, aparece um aviso no painel e um ponto pulsante no widget.
 - **Atalho global:** `Ctrl + Alt + U` (`⌘⌥U` no macOS) abre e fecha o painel.
+- **Dois estilos de widget:** o **círculo** flutuante, que você arrasta para onde quiser, ou a **ilha**, uma pílula preta no estilo da Ilha Dinâmica do iPhone, centralizada no topo, na base ou numa lateral da tela. Fechada, a ilha mostra a logo e o % e deixa os cliques passarem para o que está embaixo. Ao parar o mouse em cima, ela se expande com os limites de sessão e semana e os botões Alternar, Atualizar, Painel e Ajustes. Escolha em **Configurações → Widget flutuante**.
 - **Claude e Codex no mesmo app:** o botão **⇄** do painel ou a tecla **PgUp** (configurável) alternam a IA exibida no painel, no widget e na bandeja.
 - **Modo apresentação:** o widget some quando outro app está em tela cheia ou apresentando (Windows) e não aparece em compartilhamento de tela, gravações e prints (Windows 10 2004+ e macOS).
 - **Ícone na bandeja** (Windows) ou na barra de menus (macOS) com o percentual.
@@ -73,8 +74,8 @@ powershell -ExecutionPolicy Bypass -File .\build-windows.ps1
 
 O script instala o que faltar via `winget` (Node.js, Rust e VS Build Tools C++) e compila. A saída fica em `release\`:
 
-- `Claude Usage.exe`: executável único (~6–10 MB), roda sem instalar.
-- `Claude Usage_1.0.0_x64-setup.exe` / `.msi`: instaladores, opcionais.
+- `Claude + Codex Usage.exe`: executável único (~6–10 MB), roda sem instalar.
+- `Claude + Codex Usage_1.0.0_x64-setup.exe` / `.msi`: instaladores, opcionais.
 
 ### macOS
 
@@ -103,7 +104,7 @@ check-revoke = false
 
 **"Este computador não tem o Microsoft Edge WebView2 Runtime".** O app oferece abrir a página de download da Microsoft. O instalador (`*-setup.exe`) instala o WebView2 sozinho; o .exe portátil não.
 
-**Ao ligar o PC abre "localhost se recusou a se conectar".** O Windows estava iniciando a versão de desenvolvimento (`npm run tauri dev`). Feche-a pela bandeja e abra o `release\Claude Usage.exe` uma vez: ele corrige o registro de inicialização.
+**Ao ligar o PC abre "localhost se recusou a se conectar".** O Windows estava iniciando a versão de desenvolvimento (`npm run tauri dev`). Feche-a pela bandeja e abra o `release\Claude + Codex Usage.exe` uma vez: ele corrige o registro de inicialização.
 
 **O app mostra "Sem conexão" em rede corporativa.** O app usa o repositório de certificados do Windows/macOS (inclui a CA corporativa) e o proxy configurado no sistema. Se o proxy usar script PAC, defina `HTTPS_PROXY` nas variáveis de ambiente do usuário.
 

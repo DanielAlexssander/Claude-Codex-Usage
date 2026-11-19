@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gera o .app / .dmg universal (Apple Silicon + Intel) do Claude Usage.
+# Gera o .app / .dmg universal (Apple Silicon + Intel) do Claude + Codex Usage.
 # Uso: ./build-macos.sh   (requer Xcode Command Line Tools, Node 20+ e Rust)
 set -euo pipefail
 cd "$(dirname "$0")"

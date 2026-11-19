@@ -39,7 +39,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     app.manage(TrayHandles(Mutex::new(Some(TrayItems { widget: widget.clone(), share: share.clone(), autostart: autostart.clone() }))));
 
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
-        .tooltip("Claude Usage")
+        .tooltip("Claude + Codex Usage")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -130,7 +130,7 @@ pub fn update(app: &AppHandle) {
     let u = snap.usage.as_ref();
     let five = u.and_then(|u| crate::api::utilization(u, "five_hour"));
     let week = u.and_then(|u| crate::api::utilization(u, "seven_day"));
-    let mut tip = String::from("Claude Usage");
+    let mut tip = String::from("Claude + Codex Usage");
     if let Some(f) = five {
         tip.push_str(&format!("\nSessão (5h): {:.0}%", f.floor()));
     }

@@ -146,6 +146,9 @@ export interface Settings {
   refreshSecs: number;
   widgetVisible: boolean;
   widgetPos?: [number, number] | null;
+  /** "circle": disco flutuante · "island": pílula numa borda da tela */
+  widgetStyle: "circle" | "island";
+  islandEdge: "top" | "bottom" | "left" | "right";
   theme: "system" | "light" | "dark";
   notifications: boolean;
   thresholds: number[];
