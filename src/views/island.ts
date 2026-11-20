@@ -25,12 +25,29 @@ const ICON = {
 
 const clamp = (n: number) => Math.min(100, Math.max(0, n));
 
+/** "2h14", "45min", "3d4h": curto para caber na pílula (mesmo formato do círculo) */
+function remaining(win: LimitWindow): string | null {
+  if (!win.resetsAt) return null;
+  const m = Math.max(0, Math.round((win.resetsAt.getTime() - Date.now()) / 60000));
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+  if (d > 0) return `${d}d${h ? `${h}h` : ""}`;
+  if (h > 0) return `${h}h${String(mm).padStart(2, "0")}`;
+  return `${mm}min`;
+}
+
 export function mountIsland(root: HTMLElement, initial: Settings) {
   root.innerHTML = `
     <div class="isl" data-level="error" role="group" aria-label="Uso do Claude">
       <div class="isl-compact">
         <span class="isl-mark"></span>
-        <span class="isl-val"><b>–</b><i>%</i></span>
+        <span class="isl-val">
+          <span class="isl-num">
+            <span class="isl-n isl-n-main"><b>–</b><i>%</i></span>
+            <span class="isl-n isl-n-alt"><b>–</b><i>%</i></span>
+            <span class="isl-n isl-n-time">–</span>
+          </span>
+          <span class="isl-lbl"><span class="isl-l-main">sessão</span><span class="isl-l-alt">semana</span><span class="isl-l-time">restam</span></span>
+        </span>
         <svg class="isl-ring" viewBox="0 0 18 18" aria-hidden="true">
           <circle class="trk" cx="9" cy="9" r="${R}"/>
           <circle class="arc" cx="9" cy="9" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${C}"/>
@@ -55,7 +72,11 @@ export function mountIsland(root: HTMLElement, initial: Settings) {
 
   const isl = root.querySelector<HTMLElement>(".isl")!;
   const full = root.querySelector<HTMLElement>(".isl-full")!;
-  const val = root.querySelector<HTMLElement>(".isl-val b")!;
+  const nMain = root.querySelector<HTMLElement>(".isl-n-main b")!;
+  const nAlt = root.querySelector<HTMLElement>(".isl-n-alt b")!;
+  const nTime = root.querySelector<HTMLElement>(".isl-n-time")!;
+  const lMain = root.querySelector<HTMLElement>(".isl-l-main")!;
+  const lAlt = root.querySelector<HTMLElement>(".isl-l-alt")!;
   const arc = root.querySelector<SVGCircleElement>(".isl-ring .arc")!;
   const rows = root.querySelector<HTMLElement>(".isl-rows")!;
   const name = root.querySelector<HTMLElement>(".isl-name")!;
@@ -64,9 +85,51 @@ export function mountIsland(root: HTMLElement, initial: Settings) {
 
   let settings = initial;
   let last: Snapshot | null = null;
+  // janela principal (a da configuração "Mostra") e a outra (sessão ⇄ semana)
+  let main: LimitWindow | undefined;
+  let other: LimitWindow | undefined;
 
   function setEdge(edge: Settings["islandEdge"]) {
     isl.dataset.edge = edge;
+  }
+
+  /** Aponta o anel (arco e cor) para a janela exibida. */
+  function aim(win: LimitWindow | undefined) {
+    const u = clamp(win?.utilization ?? 0);
+    isl.dataset.level = win ? (u > CRIT ? "crit" : "ok") : "error";
+    arc.style.strokeDashoffset = String(C * (1 - u / 100));
+  }
+
+  // ---------- rotação, como no círculo: % principal → tempo restante → % da outra janela ----------
+  type Face = "main" | "time" | "alt";
+  const FACES: Face[] = ["main", "time", "alt"];
+  const FACE_MS: Record<Face, number> = { main: 7000, time: 3500, alt: 3500 };
+  let face: Face = "main";
+  let rotTimer = 0;
+
+  const available = (f: Face) => f === "main" || (f === "time" ? !!main && !!remaining(main) : !!main && !!other);
+
+  function showFace(f: Face) {
+    face = available(f) ? f : "main";
+    if (face === "time" && main) nTime.textContent = remaining(main) ?? "–";
+    isl.classList.toggle("time", face === "time");
+    isl.classList.toggle("alt", face === "alt");
+    aim(face === "alt" ? other : main);
+  }
+
+  function rotate() {
+    clearTimeout(rotTimer);
+    const at = FACES.indexOf(face);
+    const next = [1, 2, 3].map((k) => FACES[(at + k) % FACES.length]).find(available) ?? "main";
+    showFace(next);
+    rotTimer = window.setTimeout(rotate, FACE_MS[next]);
+  }
+
+  /** Volta ao % principal e recomeça o ciclo (ao fechar a ilha ou trocar de IA/métrica). */
+  function restartRotation() {
+    clearTimeout(rotTimer);
+    showFace("main");
+    rotTimer = window.setTimeout(rotate, FACE_MS.main);
   }
 
   function row(w: LimitWindow | undefined, label: string): string {
@@ -103,19 +166,22 @@ export function mountIsland(root: HTMLElement, initial: Settings) {
     const wins = limitWindows(s.usage);
     const five = wins.find((x) => x.key === "five_hour");
     const week = wins.find((x) => x.key === "seven_day");
-    const main = settings.widgetMetric === "seven_day" ? week ?? five : five ?? week;
+    main = settings.widgetMetric === "seven_day" ? week ?? five : five ?? week;
+    other = main === five ? week : five;
 
     if (!main) {
-      isl.dataset.level = "error";
-      val.textContent = "–";
-      arc.style.strokeDashoffset = String(C);
+      main = other = undefined;
+      nMain.textContent = nAlt.textContent = "–";
+      showFace("main");
       rows.innerHTML = `<p class="isl-msg">${esc(s.error?.message ?? "Sem dados de uso ainda. Abra o painel para ver os detalhes.")}</p>`;
       return;
     }
-    const u = clamp(main.utilization);
-    isl.dataset.level = u > CRIT ? "crit" : "ok";
-    val.textContent = String(Math.floor(u));
-    arc.style.strokeDashoffset = String(C * (1 - u / 100));
+    const winLabel = (w: LimitWindow | undefined) => (w?.key === "seven_day" ? "semana" : "sessão");
+    nMain.textContent = String(Math.floor(clamp(main.utilization)));
+    nAlt.textContent = other ? String(Math.floor(clamp(other.utilization))) : "–";
+    lMain.textContent = winLabel(main);
+    lAlt.textContent = winLabel(other);
+    showFace(face); // mantém o que está na tela, com os números novos
     rows.innerHTML = row(five, "Sessão") + row(week, "Semana");
   }
 
@@ -123,6 +189,9 @@ export function mountIsland(root: HTMLElement, initial: Settings) {
     if (open && last) render(last); // contagens regressivas em dia ao abrir
     isl.classList.toggle("open", open);
     full.setAttribute("aria-hidden", String(!open));
+    // aberta, a pílula compacta some: pausa o ciclo; ao fechar, recomeça do % principal
+    if (open) clearTimeout(rotTimer);
+    else restartRotation();
   }
 
   // ---------- abrir/fechar ----------
@@ -149,10 +218,14 @@ export function mountIsland(root: HTMLElement, initial: Settings) {
   listen<Snapshot>("snapshot", render);
   listen<boolean>("refreshing", (b) => isl.classList.toggle("busy", b));
   listen<Settings>("settings", (st) => {
+    const switched = st.provider !== settings.provider || st.widgetMetric !== settings.widgetMetric;
     settings = st;
     setEdge(st.islandEdge);
     if (last) render(last);
+    // nova IA/métrica começa no %, com um ciclo próprio (como no círculo)
+    if (switched) restartRotation();
   });
+  restartRotation();
   setInterval(() => {
     if (last && isl.classList.contains("open")) render(last);
   }, 30_000);

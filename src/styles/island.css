@@ -91,21 +91,60 @@ body.style-island { display: block; }
 .isl-mark svg { width: 100%; height: auto; }
 .isl-mark .wordmark { font-size: 8px; line-height: 1; color: #fff; }
 
+/* número + rótulo. Como no círculo, "% sessão → tempo restante → % semana" deslizam na vertical */
 .isl-val {
   margin-left: auto;
+  display: grid;
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.isl-num,
+.isl-lbl { display: grid; justify-items: inherit; }
+.isl-num {
+  height: 15px;
+  line-height: 15px;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 13.5px;
   letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
-.isl-val i { font-style: normal; font-size: 0.72em; font-weight: 500; color: var(--ink-2); margin-left: 1px; }
-.isl[data-level="error"] .isl-val i { display: none; }
+.isl-n i { font-style: normal; font-size: 0.72em; font-weight: 500; color: var(--ink-2); margin-left: 1px; }
+.isl[data-level="error"] .isl-n i { display: none; }
+.isl-n-time { font-size: 12.5px; }
+.isl-lbl {
+  height: 8px;
+  line-height: 8px;
+  margin-top: 1px;
+  font-size: 6.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.isl-lbl span { margin-right: -0.12em; } /* compensa o espaço após a última letra */
+.isl-n,
+.isl-lbl span {
+  grid-area: 1 / 1;
+  transition: opacity 0.28s var(--ease), transform 0.38s var(--ease);
+}
+.isl-n-alt, .isl-l-alt, .isl-n-time, .isl-l-time { opacity: 0; transform: translateY(7px); }
+.isl.alt .isl-n-main, .isl.alt .isl-l-main,
+.isl.time .isl-n-main, .isl.time .isl-l-main { opacity: 0; transform: translateY(-7px); }
+.isl.alt .isl-n-alt, .isl.alt .isl-l-alt,
+.isl.time .isl-n-time, .isl.time .isl-l-time { opacity: 1; transform: none; }
+
+/* laterais: pílula estreita, tudo centralizado */
 .isl[data-edge="left"] .isl-val,
-.isl[data-edge="right"] .isl-val { margin: 0; font-size: 12px; text-align: center; }
-.isl[data-edge="left"] .isl-val i,
-.isl[data-edge="right"] .isl-val i { display: block; margin: 0; font-size: 9px; line-height: 1; }
+.isl[data-edge="right"] .isl-val { margin: 0; justify-items: center; }
+.isl[data-edge="left"] .isl-num,
+.isl[data-edge="right"] .isl-num { font-size: 12px; }
+.isl[data-edge="left"] .isl-n-time,
+.isl[data-edge="right"] .isl-n-time { font-size: 10.5px; }
+.isl[data-edge="left"] .isl-lbl,
+.isl[data-edge="right"] .isl-lbl { font-size: 6px; letter-spacing: 0.06em; }
+.isl[data-edge="left"] .isl-lbl span,
+.isl[data-edge="right"] .isl-lbl span { margin-right: 0; text-indent: 0.06em; }
 
 .isl-ring { width: 18px; height: 18px; flex: none; rotate: -90deg; }
 .isl-ring circle { fill: none; stroke-width: 2.6; }
