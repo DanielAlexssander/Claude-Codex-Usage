@@ -61,3 +61,34 @@ jobs:
         with:
           name: claude-usage-${{ matrix.platform }}
           path: out/*
+
+  # Só em tags v*: junta os arquivos dos dois sistemas e anexa à release do GitHub.
+  # Se a release ainda não existe, cria uma com as notas geradas dos commits; se você
+  # já criou a sua (com notas próprias), só anexa os arquivos.
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: claude-usage-*
+          path: dist
+          merge-multiple: true
+
+      - name: Nomes sem espaços
+        run: |
+          mkdir -p assets
+          cp "dist/Claude + Codex Usage.exe" assets/Claude-Codex-Usage.exe
+          cp dist/*.dmg assets/Claude-Codex-Usage_macOS_universal.dmg
+          ls -l assets
+
+      - name: Anexar à release
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1             || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "Claude + Codex Usage $TAG" --generate-notes
+          gh release upload "$TAG" assets/* --repo "$GITHUB_REPOSITORY" --clobber
